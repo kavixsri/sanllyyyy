@@ -4,7 +4,7 @@
  * Vite proxies /api/* → http://localhost:3001 in dev
  */
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -91,7 +91,7 @@ export const api = {
  */
 export async function sendChatMessage(conversationId, content, onChunk, onDone, onError) {
   try {
-    const res = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+    const res = await fetch(`${BASE_URL}/chat/conversations/${conversationId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
