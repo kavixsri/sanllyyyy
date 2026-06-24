@@ -1,0 +1,146 @@
+// This is your Prisma schema file for Sanlly
+// SQLite is used for MVP — easily swappable to PostgreSQL by changing provider + DATABASE_URL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Session Store ────────────────────────────────────────────────────────────
+model Session {
+  sid    String @id
+  sess   String
+  expire BigInt?
+
+  @@map("sessions")
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  password       String
+  name           String
+  role           String   @default("user")       // "user" | "therapist" | "admin"
+  tier           String   @default("free")       // "free" | "community" | "therapy"
+  onboardingNote String?                          // "What brings you here today?"
+  communityId    Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  community        Community?       @relation("CommunityMembers", fields: [communityId], references: [id])
+  conversations    Conversation[]
+  communityPosts   CommunityPost[]
+  communityReplies CommunityReply[]
+  bookings         Booking[]        @relation("UserBookings")
+  therapist        Therapist?
+}
+
+// ─── AI Chat ──────────────────────────────────────────────────────────────────
+model Conversation {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String   @default("New Conversation")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+}
+
+model Message {
+  id             Int      @id @default(autoincrement())
+  conversationId Int
+  role           String               // "user" | "assistant"
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ─── Therapists ───────────────────────────────────────────────────────────────
+model Therapist {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  bio         String   @default("")
+  specialties String   @default("")    // Comma-separated: "Anxiety,Student Stress,Relationships"
+  photoUrl    String?
+  priceMin    Int      @default(800)   // ₹ per session (1-on-1 min)
+  priceMax    Int      @default(1500)  // ₹ per session (1-on-1 max)
+  approved    Boolean  @default(false) // Admin must approve before appearing publicly
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community Community?
+  bookings  Booking[] @relation("TherapistBookings")
+  slots     Slot[]
+}
+
+// ─── Communities (Tier 2) ─────────────────────────────────────────────────────
+model Community {
+  id          Int      @id @default(autoincrement())
+  therapistId Int      @unique
+  name        String
+  description String   @default("")
+  schedule    String   @default("")  // Static text for group session schedule
+  price       Int      @default(299) // ₹ per month
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  therapist Therapist       @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  members   User[]          @relation("CommunityMembers")
+  posts     CommunityPost[]
+}
+
+model CommunityPost {
+  id          Int      @id @default(autoincrement())
+  communityId Int
+  userId      Int
+  content     String
+  createdAt   DateTime @default(now())
+
+  community Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies   CommunityReply[]
+}
+
+model CommunityReply {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  userId    Int
+  content   String
+  createdAt DateTime @default(now())
+
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Bookings (Tier 3) ────────────────────────────────────────────────────────
+model Slot {
+  id          Int      @id @default(autoincrement())
+  therapistId Int
+  datetime    DateTime
+  booked      Boolean  @default(false)
+
+  therapist Therapist @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  therapistId Int
+  slotId      Int?
+  datetime    DateTime
+  price       Int      @default(800) // ₹ per session
+  status      String   @default("confirmed") // "confirmed" | "cancelled" | "completed"
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  user      User      @relation("UserBookings", fields: [userId], references: [id], onDelete: Cascade)
+  therapist Therapist @relation("TherapistBookings", fields: [therapistId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+.env
+
+# Build outputs
+client/dist/
+
+# Database files
+server/prisma/pgdata/
+
+# OS generated files
+.DS_Store
+Thumbs.db

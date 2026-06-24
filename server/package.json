@@ -1,0 +1,35 @@
+{
+  "name": "sanlly-server",
+  "version": "1.0.0",
+  "description": "Sanlly mental health platform - API server",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "db:setup": "node src/lib/migrate.js && node prisma/seed.js",
+    "db:migrate": "node src/lib/migrate.js",
+    "db:seed": "node prisma/seed.js",
+    "db:generate": "npx prisma generate",
+    "db:reset": "node -e \"const fs=require('fs'),path=require('path');const d=path.join(__dirname,'prisma','pgdata');if(fs.existsSync(d))fs.rmSync(d,{recursive:true});console.log('DB reset.')\" && npm run db:setup"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@electric-sql/pglite": "^0.5.3",
+    "@libsql/client": "^0.17.4",
+    "@prisma/adapter-libsql": "^7.8.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-session": "^1.18.0",
+    "helmet": "^7.1.0",
+    "pglite-prisma-adapter": "^0.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7",
+    "prisma": "^7.8.0"
+  }
+}
