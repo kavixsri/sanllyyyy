@@ -2,6 +2,6 @@
   "name": "sanlly-monorepo",
   "private": true,
   "scripts": {
-    "build": "bash build.sh"
+    "build": "node build.js"
   }
 }
