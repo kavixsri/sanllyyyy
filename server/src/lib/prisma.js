@@ -31,9 +31,10 @@ async function init() {
     return { pglite: null, prisma: _prismaClient };
   }
 
-  // Otherwise fallback to local PGlite file-based DB
+  // Otherwise fallback to local PGlite file-based DB (or memory on Vercel to prevent filesystem hangs)
+  const pgliteTarget = process.env.VERCEL ? 'memory://' : dataDir;
   const { PGlite } = await import('@electric-sql/pglite');
-  _pglite = new PGlite(dataDir);
+  _pglite = new PGlite(pgliteTarget);
   await _pglite.waitReady;
   const adapter = new PrismaPGlite(_pglite);
   _prismaClient = new PrismaClient({ adapter });
