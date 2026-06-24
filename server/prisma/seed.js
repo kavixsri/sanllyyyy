@@ -6,21 +6,10 @@
 
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-const { PrismaClient } = require('@prisma/client');
-const { PrismaPGlite } = require('pglite-prisma-adapter');
 const bcrypt = require('bcryptjs');
 
-const dataDir = path.join(__dirname, '..', 'prisma', 'pgdata');
-
-let prisma;
-
-async function initPrisma() {
-  const { PGlite } = await import('@electric-sql/pglite');
-  const pglite = new PGlite(dataDir);
-  await pglite.waitReady;
-  const adapter = new PrismaPGlite(pglite);
-  prisma = new PrismaClient({ adapter });
-}
+// Use the shared Prisma proxy which correctly auto-detects Vercel Postgres vs local PGlite
+const prisma = require('../src/lib/prisma');
 
 const SPECIALTIES = {
   priya: 'Anxiety,Student Stress,Academic Pressure',
@@ -29,7 +18,6 @@ const SPECIALTIES = {
 };
 
 async function main() {
-  await initPrisma();
   console.log('🌱 Seeding Sanlly database...\n');
 
   // ─── Admin User ─────────────────────────────────────────────────────────────

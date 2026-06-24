@@ -20,11 +20,12 @@ let _initPromise = null;
 async function init() {
   if (_prismaClient) return { pglite: _pglite, prisma: _prismaClient };
   
+  const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
   // If Vercel/External Postgres URL is provided, use standard Postgres (Vercel-ready)
-  if (process.env.DATABASE_URL) {
+  if (dbUrl) {
     const { Pool } = require('pg');
     const { PrismaPg } = require('@prisma/adapter-pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pool = new Pool({ connectionString: dbUrl });
     const adapter = new PrismaPg(pool);
     _prismaClient = new PrismaClient({ adapter });
     return { pglite: null, prisma: _prismaClient };
