@@ -138,7 +138,8 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.stack || err.message);
   res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+    error: err.message || 'Internal server error',
+    stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined
   });
 });
 

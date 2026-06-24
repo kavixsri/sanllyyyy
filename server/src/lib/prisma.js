@@ -21,14 +21,23 @@ async function init() {
   if (_prismaClient) return { pglite: _pglite, prisma: _prismaClient };
   
   const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
-  // If Vercel/External Postgres URL is provided, use standard Postgres (Vercel-ready)
   if (dbUrl) {
-    const { Pool } = require('pg');
-    const { PrismaPg } = require('@prisma/adapter-pg');
-    const pool = new Pool({ connectionString: dbUrl });
-    const adapter = new PrismaPg(pool);
-    _prismaClient = new PrismaClient({ adapter });
-    return { pglite: null, prisma: _prismaClient };
+    try {
+      const { Pool } = require('pg');
+      const { PrismaPg } = require('@prisma/adapter-pg');
+      const pool = new Pool({ connectionString: dbUrl, connectionTimeoutMillis: 3000 });
+      
+      // Test the connection immediately. If it fails (e.g. broken dbUrl), fallback to PGlite
+      const client = await pool.connect();
+      client.release();
+      
+      const adapter = new PrismaPg(pool);
+      _prismaClient = new PrismaClient({ adapter });
+      return { pglite: null, prisma: _prismaClient };
+    } catch (e) {
+      console.warn('[DB] Failed to connect to external Postgres. Falling back to PGlite...', e.message);
+      // Fall through to local PGlite
+    }
   }
 
   // Otherwise fallback to local PGlite file-based DB (or memory on Vercel to prevent filesystem hangs)
