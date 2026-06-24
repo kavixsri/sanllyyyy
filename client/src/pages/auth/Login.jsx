@@ -94,6 +94,25 @@ export default function Login() {
               style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem', padding: '0.8rem' }}>
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', margin: '0.5rem 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+              <span style={{ padding: '0 1rem', fontSize: '0.8rem', color: 'var(--color-text-placeholder)' }}>OR</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+            </div>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setEmail('demo@sanlly.in');
+                setPassword('demo123456');
+                document.getElementById('login-submit').click();
+              }}
+              style={{ width: '100%', justifyContent: 'center', padding: '0.8rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+            >
+              Continue as Guest
+            </button>
           </form>
 
           <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>

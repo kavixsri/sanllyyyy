@@ -19,6 +19,18 @@ let _initPromise = null;
 
 async function init() {
   if (_prismaClient) return { pglite: _pglite, prisma: _prismaClient };
+  
+  // If Vercel/External Postgres URL is provided, use standard Postgres (Vercel-ready)
+  if (process.env.DATABASE_URL) {
+    const { Pool } = require('pg');
+    const { PrismaPg } = require('@prisma/adapter-pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const adapter = new PrismaPg(pool);
+    _prismaClient = new PrismaClient({ adapter });
+    return { pglite: null, prisma: _prismaClient };
+  }
+
+  // Otherwise fallback to local PGlite file-based DB
   const { PGlite } = await import('@electric-sql/pglite');
   _pglite = new PGlite(dataDir);
   await _pglite.waitReady;

@@ -92,6 +92,22 @@ export default function Signup() {
               style={{ width: '100%', justifyContent: 'center', padding: '0.8rem', marginTop: '0.25rem' }}>
               {loading ? 'Creating account...' : 'Get started — it\'s free'}
             </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', margin: '0.5rem 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+              <span style={{ padding: '0 1rem', fontSize: '0.8rem', color: 'var(--color-text-placeholder)' }}>OR</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+            </div>
+
+            <Link
+              to="/login"
+              style={{ display: 'flex', width: '100%', justifyContent: 'center', padding: '0.8rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, textDecoration: 'none', color: 'var(--color-text)' }}
+              onClick={(e) => {
+                // Rely on the login page's guest button functionality if they navigate
+              }}
+            >
+              Continue as Guest
+            </Link>
           </form>
 
           <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>

@@ -16,58 +16,46 @@ const adminRoutes = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ─── Raw SQL Session Store ─────────────────────────────────────────────────────
-// Uses PGlite raw SQL so there's no Prisma type system involved for session data.
-class PGliteSessionStore extends session.Store {
-  constructor() {
-    super();
-    // Warm up the PGlite connection immediately
-    getPglite().catch(() => {});
-    // Periodic cleanup of expired sessions
-    setInterval(() => this._cleanup(), 15 * 60 * 1000);
-  }
-
-  async _cleanup() {
-    try {
-      const pg = await getPglite();
-      await pg.exec(`DELETE FROM sessions WHERE expire IS NOT NULL AND expire < ${Date.now()}`);
-    } catch (_) {}
-  }
-
+// ─── Session Store (Universal for PGlite & Vercel/Postgres) ─────────────────────
+// Uses Prisma raw queries to bypass schema type issues and work across DB engines.
+class UniversalSessionStore extends session.Store {
   async get(sid, cb) {
     try {
-      const pg = await getPglite();
-      const result = await pg.query(
-        `SELECT sess FROM sessions WHERE sid = $1 AND (expire IS NULL OR expire > $2)`,
-        [sid, Date.now()]
-      );
-      cb(null, result.rows[0] ? JSON.parse(result.rows[0].sess) : null);
+      // Use BigInt for compatibility with the BIGINT expire column
+      const now = BigInt(Date.now());
+      const rows = await prisma.$queryRaw`SELECT sess FROM sessions WHERE sid = ${sid} AND (expire IS NULL OR expire > ${now})`;
+      cb(null, rows[0] ? JSON.parse(rows[0].sess) : null);
     } catch (e) { cb(e); }
   }
 
   async set(sid, sess, cb) {
-    const expire = Date.now() + (sess.cookie?.maxAge ?? 7 * 24 * 60 * 60 * 1000);
+    const expire = BigInt(Date.now() + (sess.cookie?.maxAge ?? 7 * 24 * 60 * 60 * 1000));
     try {
-      const pg = await getPglite();
-      await pg.query(
-        `INSERT INTO sessions (sid, sess, expire) VALUES ($1, $2, $3)
-         ON CONFLICT (sid) DO UPDATE SET sess = EXCLUDED.sess, expire = EXCLUDED.expire`,
-        [sid, JSON.stringify(sess), expire]
-      );
+      await prisma.$executeRaw`
+        INSERT INTO sessions (sid, sess, expire) VALUES (${sid}, ${JSON.stringify(sess)}, ${expire})
+        ON CONFLICT (sid) DO UPDATE SET sess = EXCLUDED.sess, expire = EXCLUDED.expire
+      `;
       cb(null);
     } catch (e) { cb(e); }
   }
 
   async destroy(sid, cb) {
     try {
-      const pg = await getPglite();
-      await pg.query(`DELETE FROM sessions WHERE sid = $1`, [sid]);
+      await prisma.$executeRaw`DELETE FROM sessions WHERE sid = ${sid}`;
       cb(null);
     } catch (e) { cb(e); }
   }
 
   touch(sid, sess, cb) { this.set(sid, sess, cb); }
 }
+
+// Clean up expired sessions periodically
+setInterval(async () => {
+  try {
+    const now = BigInt(Date.now());
+    await prisma.$executeRaw`DELETE FROM sessions WHERE expire IS NOT NULL AND expire < ${now}`;
+  } catch (_) {}
+}, 15 * 60 * 1000);
 
 // ─── Security ─────────────────────────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -90,7 +78,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'sanlly-dev-secret',
   resave: false,
   saveUninitialized: false,
-  store: new PGliteSessionStore(),
+  store: new UniversalSessionStore(),
   cookie: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -126,17 +114,20 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🌿 Sanlly API running on http://localhost:${PORT}`);
-  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   AI Mode: ${process.env.ANTHROPIC_API_KEY ? '✅ Claude AI (live)' : '🤖 Mock AI (add ANTHROPIC_API_KEY to enable)'}\n`);
-});
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n🌿 Sanlly API running on http://localhost:${PORT}`);
+    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   AI Mode: ${process.env.ANTHROPIC_API_KEY ? '✅ Claude AI (live)' : '🤖 Mock AI (add ANTHROPIC_API_KEY to enable)'}\n`);
+  });
+}
 
 process.on('SIGTERM', async () => {
-  const { getPrisma } = require('./lib/prisma');
   try {
-    const client = await getPrisma();
+    const client = await prisma.getPrisma();
     await client.$disconnect();
   } catch (_) {}
   process.exit(0);
 });
+
+module.exports = app;
