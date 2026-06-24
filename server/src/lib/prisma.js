@@ -72,6 +72,18 @@ const prisma = new Proxy({}, {
     if (model === '$transaction') {
       return (...args) => getPrisma().then(c => c.$transaction(...args));
     }
+    if (model === '$queryRaw') {
+      return (...args) => getPrisma().then(c => c.$queryRaw(...args));
+    }
+    if (model === '$executeRaw') {
+      return (...args) => getPrisma().then(c => c.$executeRaw(...args));
+    }
+    if (model === '$queryRawUnsafe') {
+      return (...args) => getPrisma().then(c => c.$queryRawUnsafe(...args));
+    }
+    if (model === '$executeRawUnsafe') {
+      return (...args) => getPrisma().then(c => c.$executeRawUnsafe(...args));
+    }
     if (model === 'getPglite') return getPglite;
     if (model === 'getPrisma') return getPrisma;
     return new Proxy({}, {
