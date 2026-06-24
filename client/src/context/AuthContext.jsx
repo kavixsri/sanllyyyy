@@ -11,7 +11,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     api.auth.me()
       .then(data => setUser(data.user))
-      .catch(() => setUser(null))
+      .catch(() => {
+        // Auto-login as demo user to remove the login wall for the MVP
+        return api.auth.login({ email: 'demo@sanlly.in', password: 'demo123456' })
+          .then(data => setUser(data.user))
+          .catch(() => setUser(null));
+      })
       .finally(() => setLoading(false));
   }, []);
 

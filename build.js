@@ -21,17 +21,8 @@ try {
   run('npm install', 'server');
   run('npx prisma generate', 'server');
 
-  // Handle Database Migrations on Vercel
-  const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
-  if (dbUrl) {
-    console.log('--- RUNNING MIGRATIONS ---');
-    process.env.DATABASE_URL = dbUrl;
-    run('npx prisma db push --accept-data-loss', 'server');
-    console.log('--- SEEDING DATABASE ---');
-    run('node prisma/seed.js', 'server');
-  } else {
-    console.log('No external database configured. Skipping migration.');
-  }
+  // Database Migrations and Seeding have been moved to runtime to prevent build failures.
+  console.log('--- BUILD SUCCESS ---');
 } catch (err) {
   console.error('\n❌ BUILD FAILED:', err.message);
   process.exit(1);

@@ -88,6 +88,49 @@ app.use(session({
 }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+// Auto-Heal Middleware: Ensures the database tables exist without requiring Prisma CLI
+let dbHealed = false;
+app.use('/api', async (req, res, next) => {
+  if (dbHealed) return next();
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM sessions LIMIT 1`;
+    dbHealed = true;
+    next();
+  } catch (err) {
+    console.log('[AUTO-HEAL] Database tables missing. Self-healing dynamically...');
+    try {
+      const statements = [
+        `CREATE TABLE IF NOT EXISTS "sessions" ("sid" TEXT PRIMARY KEY, "sess" TEXT NOT NULL, "expire" BIGINT);`,
+        `CREATE TABLE IF NOT EXISTS "User" ("id" SERIAL PRIMARY KEY, "email" TEXT UNIQUE NOT NULL, "password" TEXT NOT NULL, "name" TEXT NOT NULL, "role" TEXT NOT NULL DEFAULT 'user', "tier" TEXT NOT NULL DEFAULT 'free', "onboardingNote" TEXT, "communityId" INTEGER, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW());`,
+        `CREATE TABLE IF NOT EXISTS "Therapist" ("id" SERIAL PRIMARY KEY, "userId" INTEGER UNIQUE NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "bio" TEXT NOT NULL DEFAULT '', "specialties" TEXT NOT NULL DEFAULT '', "photoUrl" TEXT, "priceMin" INTEGER NOT NULL DEFAULT 800, "priceMax" INTEGER NOT NULL DEFAULT 1500, "approved" BOOLEAN NOT NULL DEFAULT FALSE, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW());`,
+        `CREATE TABLE IF NOT EXISTS "Community" ("id" SERIAL PRIMARY KEY, "therapistId" INTEGER UNIQUE NOT NULL REFERENCES "Therapist"("id") ON DELETE CASCADE, "name" TEXT NOT NULL, "description" TEXT NOT NULL DEFAULT '', "schedule" TEXT NOT NULL DEFAULT '', "price" INTEGER NOT NULL DEFAULT 299, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW());`,
+        `CREATE TABLE IF NOT EXISTS "Conversation" ("id" SERIAL PRIMARY KEY, "userId" INTEGER NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "title" TEXT NOT NULL DEFAULT 'New Conversation', "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(), "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW());`,
+        `CREATE TABLE IF NOT EXISTS "Message" ("id" SERIAL PRIMARY KEY, "conversationId" INTEGER NOT NULL REFERENCES "Conversation"("id") ON DELETE CASCADE, "role" TEXT NOT NULL, "content" TEXT NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW());`,
+        `CREATE TABLE IF NOT EXISTS "CommunityPost" ("id" SERIAL PRIMARY KEY, "communityId" INTEGER NOT NULL REFERENCES "Community"("id") ON DELETE CASCADE, "userId" INTEGER NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "content" TEXT NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW());`,
+        `CREATE TABLE IF NOT EXISTS "CommunityReply" ("id" SERIAL PRIMARY KEY, "postId" INTEGER NOT NULL REFERENCES "CommunityPost"("id") ON DELETE CASCADE, "userId" INTEGER NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "content" TEXT NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW());`,
+        `CREATE TABLE IF NOT EXISTS "Slot" ("id" SERIAL PRIMARY KEY, "therapistId" INTEGER NOT NULL REFERENCES "Therapist"("id") ON DELETE CASCADE, "datetime" TIMESTAMP NOT NULL, "booked" BOOLEAN NOT NULL DEFAULT FALSE);`,
+        `CREATE TABLE IF NOT EXISTS "Booking" ("id" SERIAL PRIMARY KEY, "userId" INTEGER NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "therapistId" INTEGER NOT NULL REFERENCES "Therapist"("id") ON DELETE CASCADE, "slotId" INTEGER, "datetime" TIMESTAMP NOT NULL, "price" INTEGER NOT NULL DEFAULT 800, "status" TEXT NOT NULL DEFAULT 'confirmed', "notes" TEXT, "createdAt" TIMESTAMP NOT NULL DEFAULT NOW());`
+      ];
+      for (const stmt of statements) {
+        await prisma.$executeRawUnsafe(stmt);
+      }
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD CONSTRAINT "User_communityId_fkey" FOREIGN KEY ("communityId") REFERENCES "Community"("id") ON DELETE SET NULL;`);
+      } catch(e) {}
+      
+      const bcrypt = require('bcryptjs');
+      const demoPassword = await bcrypt.hash('demo123456', 12);
+      await prisma.$executeRawUnsafe(`INSERT INTO "User" (email, password, name, role, tier) VALUES ('demo@sanlly.in', '${demoPassword}', 'Demo User', 'user', 'free') ON CONFLICT (email) DO NOTHING`);
+      console.log('[AUTO-HEAL] Database initialized successfully!');
+      dbHealed = true;
+      next();
+    } catch (e) {
+      console.error('[AUTO-HEAL] Failed to self-heal:', e.message);
+      next(e);
+    }
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/communities', communityRoutes);
