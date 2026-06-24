@@ -26,6 +26,7 @@
     "express": "^4.21.0",
     "express-session": "^1.18.0",
     "helmet": "^7.1.0",
+    "pg": "^8.22.0",
     "pglite-prisma-adapter": "^0.7.2"
   },
   "devDependencies": {

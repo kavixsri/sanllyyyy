@@ -2,6 +2,6 @@
   "name": "sanlly-monorepo",
   "private": true,
   "scripts": {
-    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install && if [ -n \"$DATABASE_URL\" ] || [ -n \"$POSTGRES_PRISMA_URL\" ]; then cd server && export DATABASE_URL=${DATABASE_URL:-$POSTGRES_PRISMA_URL} && npx prisma db push --accept-data-loss && node prisma/seed.js; fi"
+    "build": "bash build.sh"
   }
 }
